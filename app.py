@@ -11,6 +11,9 @@ app = Flask(__name__)
 def hello():
     return "Halo, the API is alive!"
 
+@app.route('/face', methods=['GET'])
+def face():
+    return "Halo, this is face api!"
 
 # verify if there is any human face in the picture
 # params
