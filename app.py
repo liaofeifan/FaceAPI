@@ -2,6 +2,10 @@ import face_recognition
 import json
 from flask import Flask
 from flask import request
+
+# self-written functions
+from func import get_face
+
 app = Flask(__name__)
 
 # api activity test
@@ -32,11 +36,10 @@ def face_detect():
         # get image file in request data
         img_file = request.files['img']
 
-        img = face_recognition.load_image_file(img_file)
-        encoding = face_recognition.face_encodings(img)
+        face = get_face(img_file)
 
-        if len(encoding) != 1:
-            api_msg["msg"] = "no human face or multi human faces in the image"
+        if len(face) != 1:
+            api_msg["msg"] = "No human face or multi human faces in the image"
         else:
             api_msg["status"] = 0
             api_msg["data"] = {"result": 1}
@@ -64,31 +67,29 @@ def face_compare():
         source_img_file = request.files['source_img']
         img_file = request.files['img']
 
-        source_img = face_recognition.load_image_file(source_img_file)
-        source_encoding = face_recognition.face_encodings(source_img)
+        source_face = get_face(source_img_file)
 
         # detect if there is only one face in source image
-        if len(source_encoding) != 1:
-            api_msg["msg"] = "no human face or multi human faces in source image"
-
+        if len(source_face) != 1:
+            api_msg["msg"] = "No human face or multi human faces in source image"
             return json.dumps(api_msg)
         else:
-            source_encoding = source_encoding[0]
+            source_face = source_face[0]
 
         # get source face encodings list
         source_encodings = [
-            source_encoding
+            source_face
         ]
 
-        img = face_recognition.load_image_file(img_file)
-        encoding = face_recognition.face_encodings(img)
+        face = get_face(img_file)
 
         # detect if there is only one face in source image
-        if len(encoding) != 1:
+        if len(face) != 1:
             api_msg["status"] = -1
             api_msg["msg"] = "no human face or multi human faces in target image"
+            return json.dumps(api_msg)
         else:
-            encoding = encoding[0]
+            encoding = face[0]
 
         # compute the face distance between source & target face
         face_distances = face_recognition.face_distance(source_encodings, encoding)
