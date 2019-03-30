@@ -2,6 +2,9 @@ import face_recognition
 import json
 from flask import Flask
 from flask import request
+import base64
+from PIL import Image
+from io import BytesIO
 
 # self-written functions
 from func import get_face
@@ -15,6 +18,7 @@ app = Flask(__name__)
 def hello():
     return "Halo, the API is alive!"
 
+
 @app.route('/face', methods=['GET'])
 def face():
     return "Halo, this is face api!"
@@ -26,7 +30,7 @@ def face():
 
 @app.route('/api/face_detection', methods=['POST'])
 def face_detect():
-    #initialize api message
+    # initialize api message
     api_msg = {
         "status": -1,
         "data": {},
@@ -34,11 +38,21 @@ def face_detect():
     }
     if request.method == 'POST':
         # get image file in request data
-        img_file = request.files['img']
+        # detect if any file uploaded
+        if request.files:
+            img_file = request.files['img']
+        else:
+            data = request.get_data()
+            data = bytes.decode(data)
+            data = json.loads(data)['img']
+            data = str.encode(data)
+            img_file = base64.b64decode(data)
+            img_file = BytesIO(img_file)
 
-        face = get_face(img_file)
+        # img_file = request.files['img']
+        faces = get_face(img_file)
 
-        if len(face) != 1:
+        if len(faces) != 1:
             api_msg["msg"] = "No human face or multi human faces in the image"
         else:
             api_msg["status"] = 0
@@ -64,32 +78,48 @@ def face_compare():
         "msg": ""
     }
     if request.method == 'POST':
-        source_img_file = request.files['source_img']
-        img_file = request.files['img']
+        if request.files:
+            source_img_file = request.files['source_img']
+            img_file = request.files['img']
+        else:
+            # source image file
+            data = request.get_data()
+            data = bytes.decode(data)  # bytes to string
+            data = json.loads(data)['source_img']  # string to json $ get image base64 string
+            data = str.encode(data)  # string to bytes for base64.b64decode()
+            source_img_file = base64.b64decode(data)  # decode to image bytes stream
+            source_img_file = BytesIO(source_img_file)
 
-        source_face = get_face(source_img_file)
+            data = request.get_data()
+            data = bytes.decode(data)
+            data = json.loads(data)['img']
+            data = str.encode(data)
+            img_file = base64.b64decode(data)
+            img_file = BytesIO(img_file)
+
+        source_faces = get_face(source_img_file)
 
         # detect if there is only one face in source image
-        if len(source_face) != 1:
+        if len(source_faces) != 1:
             api_msg["msg"] = "No human face or multi human faces in source image"
             return json.dumps(api_msg)
         else:
-            source_face = source_face[0]
+            source_faces = source_faces[0]
 
         # get source face encodings list
         source_encodings = [
-            source_face
+            source_faces
         ]
 
-        face = get_face(img_file)
+        faces = get_face(img_file)
 
         # detect if there is only one face in source image
-        if len(face) != 1:
+        if len(faces) != 1:
             api_msg["status"] = -1
             api_msg["msg"] = "no human face or multi human faces in target image"
             return json.dumps(api_msg)
         else:
-            encoding = face[0]
+            encoding = faces[0]
 
         # compute the face distance between source & target face
         face_distances = face_recognition.face_distance(source_encodings, encoding)
